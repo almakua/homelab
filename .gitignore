@@ -1,0 +1,20 @@
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfplan
+*.tfvars
+.terraform.lock.hcl
+
+# Talos — generati da talhelper, mai in git
+infra/talos/clusterconfig/
+!infra/talos/clusterconfig/.gitkeep
+
+# Kubeconfig
+kubeconfig
+*.kubeconfig
+
+# Segreti non cifrati
+*.key
+*.pem
+!*.sops.*

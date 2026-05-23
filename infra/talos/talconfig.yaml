@@ -1,0 +1,123 @@
+clusterName: homelab
+talosVersion: v1.9.5
+kubernetesVersion: v1.32.0
+
+endpoint: https://10.0.20.20:6443
+
+additionalApiServerCertSANs:
+  - 10.0.20.20
+
+cniConfig:
+  name: none
+
+nodes:
+  # ── Control plane 0 — boromir (7700HQ) ──────────────────────────────────
+  - hostname: talos-cp-0
+    ipAddress: 10.0.20.21
+    installDisk: /dev/vda
+    controlPlane: true
+    networkInterfaces:
+      - deviceSelector:
+          hardwareAddr: "bc:24:11:*"
+        addresses:
+          - 10.0.20.21/24
+        routes:
+          - network: 0.0.0.0/0
+            gateway: 10.0.20.1
+        dhcp: false
+        vip:
+          ip: 10.0.20.20
+
+  # ── Control plane 1 — boromir (7700HQ) ──────────────────────────────────
+  - hostname: talos-cp-1
+    ipAddress: 10.0.20.22
+    installDisk: /dev/vda
+    controlPlane: true
+    networkInterfaces:
+      - deviceSelector:
+          hardwareAddr: "bc:24:11:*"
+        addresses:
+          - 10.0.20.22/24
+        routes:
+          - network: 0.0.0.0/0
+            gateway: 10.0.20.1
+        dhcp: false
+        vip:
+          ip: 10.0.20.20
+
+  # ── Control plane 2 — gandalf (7500U) ───────────────────────────────────
+  - hostname: talos-cp-2
+    ipAddress: 10.0.20.24
+    installDisk: /dev/vda
+    controlPlane: true
+    networkInterfaces:
+      - deviceSelector:
+          hardwareAddr: "bc:24:11:*"
+        addresses:
+          - 10.0.20.24/24
+        routes:
+          - network: 0.0.0.0/0
+            gateway: 10.0.20.1
+        dhcp: false
+        vip:
+          ip: 10.0.20.20
+
+  # ── Worker 0 — boromir (7700HQ) — workload pesanti ──────────────────────
+  - hostname: talos-worker-0
+    ipAddress: 10.0.20.23
+    installDisk: /dev/vda
+    controlPlane: false
+    networkInterfaces:
+      - deviceSelector:
+          hardwareAddr: "bc:24:11:*"
+        addresses:
+          - 10.0.20.23/24
+        routes:
+          - network: 0.0.0.0/0
+            gateway: 10.0.20.1
+        dhcp: false
+    nodeLabels:
+      node-role: heavy
+
+  # ── Worker 1 — gandalf (7500U) — workload leggeri ───────────────────────
+  - hostname: talos-worker-1
+    ipAddress: 10.0.20.25
+    installDisk: /dev/vda
+    controlPlane: false
+    networkInterfaces:
+      - deviceSelector:
+          hardwareAddr: "bc:24:11:*"
+        addresses:
+          - 10.0.20.25/24
+        routes:
+          - network: 0.0.0.0/0
+            gateway: 10.0.20.1
+        dhcp: false
+    nodeLabels:
+      node-role: light
+
+controlPlane:
+  patches:
+    - |-
+      cluster:
+        proxy:
+          disabled: true
+    - |-
+      machine:
+        kubelet:
+          extraArgs:
+            rotate-server-certificates: "true"
+          nodeIP:
+            validSubnets:
+              - 10.0.20.0/24
+
+worker:
+  patches:
+    - |-
+      machine:
+        kubelet:
+          extraArgs:
+            rotate-server-certificates: "true"
+          nodeIP:
+            validSubnets:
+              - 10.0.20.0/24
