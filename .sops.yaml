@@ -1,7 +1,0 @@
-creation_rules:
-  - path_regex: infra/talos/talsecret\.sops\.yaml
-    age: >-
-      age1ck2zqx5tepdlnazcqgyh7xzeejnqxe7p7n74uvnnlx3qmw9evpgsw2af74
-  - path_regex: cluster/.*\.sops\.yaml$
-    age: >-
-      age1ck2zqx5tepdlnazcqgyh7xzeejnqxe7p7n74uvnnlx3qmw9evpgsw2af74
