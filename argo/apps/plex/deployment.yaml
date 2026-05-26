@@ -16,7 +16,7 @@ spec:
         app: plex
     spec:
       nodeSelector:
-        node-role: heavy   # sul worker-0, ha 4 vCPU per transcoding
+        node-role: heavy
       containers:
         - name: plex
           image: plexinc/pms-docker:latest
@@ -46,8 +46,6 @@ spec:
               mountPath: /media
             - name: transcode
               mountPath: /transcode
-            - name: dri
-              mountPath: /dev/dri
           resources:
             requests:
               cpu: 500m
@@ -65,7 +63,3 @@ spec:
         - name: transcode
           emptyDir:
             sizeLimit: 20Gi
-        - name: dri
-          hostPath:
-            path: /dev/dri
-            type: Directory
