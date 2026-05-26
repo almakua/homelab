@@ -35,7 +35,7 @@ spec:
                   name: wg-easy-secret
                   key: password-hash
             - name: WG_ALLOWED_IPS
-              value: "10.0.20.0/24, 95.110.183.54/32"  # solo traffico verso il cluster
+              value: "10.0.20.0/24"  # solo traffico verso il cluster
           ports:
             - containerPort: 51820
               protocol: UDP
