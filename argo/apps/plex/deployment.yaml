@@ -44,6 +44,7 @@ spec:
               mountPath: /config
             - name: media
               mountPath: /media
+              readOnly: true
             - name: transcode
               mountPath: /transcode
           resources:
@@ -58,8 +59,10 @@ spec:
           persistentVolumeClaim:
             claimName: plex-config
         - name: media
-          persistentVolumeClaim:
-            claimName: plex-media
+          nfs:
+            server: 10.0.20.12
+            path: /mnt/media
+            readOnly: true
         - name: transcode
           emptyDir:
             sizeLimit: 20Gi
