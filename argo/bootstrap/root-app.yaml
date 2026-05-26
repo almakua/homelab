@@ -10,8 +10,8 @@ spec:
     targetRevision: main
     path: argo
     directory:
-      recurse: true
-      include: '{infrastructure/**/*.yaml,apps/**/*.yaml}'
+      recurse: false
+      include: '{infrastructure/*.yaml,apps/*.yaml}'
   destination:
     server: https://kubernetes.default.svc
   syncPolicy:
