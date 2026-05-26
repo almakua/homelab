@@ -8,16 +8,13 @@ spec:
   source:
     repoURL: https://github.com/almakua/homelab.git
     targetRevision: main
-    path: argo
+    path: argo/applications
     directory:
       recurse: false
-      include: '{infrastructure/*.yaml,apps/*.yaml}'
   destination:
     server: https://kubernetes.default.svc
+    namespace: argocd
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - ServerSideApply=true
