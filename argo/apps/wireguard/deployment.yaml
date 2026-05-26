@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wg-easy
+  namespace: wireguard
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate   # un solo pod, evita conflitti su porta 51820
+  selector:
+    matchLabels:
+      app: wg-easy
+  template:
+    metadata:
+      labels:
+        app: wg-easy
+    spec:
+      nodeSelector:
+        node-role: light  # gira sul worker-1 (gandalf)
+      containers:
+        - name: wg-easy
+          image: ghcr.io/wg-easy/wg-easy:14
+          env:
+            - name: LANG
+              value: "it"
+            - name: WG_HOST
+              value: "vpn.mbianchi.me"
+            - name: WG_PORT
+              value: "51820"
+            - name: WG_DEFAULT_DNS
+              value: "1.1.1.1"
+            - name: PASSWORD_HASH
+              valueFrom:
+                secretKeyRef:
+                  name: wg-easy-secret
+                  key: password-hash
+            - name: WG_ALLOWED_IPS
+              value: "10.0.20.0/24"  # solo traffico verso il cluster
+          ports:
+            - containerPort: 51820
+              protocol: UDP
+              name: wireguard
+            - containerPort: 51821
+              protocol: TCP
+              name: web-ui
+          securityContext:
+            capabilities:
+              add: [NET_ADMIN, SYS_MODULE]
+            privileged: true
+          volumeMounts:
+            - name: config
+              mountPath: /etc/wireguard
+            - name: modules
+              mountPath: /lib/modules
+              readOnly: true
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: wg-easy-config
+        - name: modules
+          hostPath:
+            path: /lib/modules
