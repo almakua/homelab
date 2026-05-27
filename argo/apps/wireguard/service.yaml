@@ -3,8 +3,11 @@ kind: Service
 metadata:
   name: wg-easy-vpn
   namespace: wireguard
+  annotations:
+    metallb.universe.tf/loadBalancerIPs: "10.0.20.202"
 spec:
-  type: NodePort
+  type: LoadBalancer
+  externalTrafficPolicy: Local
   selector:
     app: wg-easy
   ports:
@@ -12,7 +15,6 @@ spec:
       protocol: UDP
       port: 51820
       targetPort: 51820
-      nodePort: 31820  # porta esposta sui nodi
 ---
 apiVersion: v1
 kind: Service
