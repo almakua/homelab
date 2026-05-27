@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: transmission
+  namespace: media
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/whitelist-source-range: "10.42.0.0/16,10.0.20.0/24,10.8.0.0/24,10.0.10.0/24"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [transmission.mbianchi.me]
+      secretName: transmission-tls
+  rules:
+    - host: transmission.mbianchi.me
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: transmission
+                port:
+                  number: 9091

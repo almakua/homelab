@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: transmission
+  namespace: media
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: transmission
+  template:
+    metadata:
+      labels:
+        app: transmission
+    spec:
+      nodeSelector:
+        node-role: heavy
+      containers:
+        - name: transmission
+          image: lscr.io/linuxserver/transmission:4.0.6
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "Europe/Rome"
+          ports:
+            - containerPort: 9091
+              name: web
+            - containerPort: 51413
+              protocol: TCP
+              name: bt-tcp
+            - containerPort: 51413
+              protocol: UDP
+              name: bt-udp
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: downloads
+              mountPath: /downloads
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 2000m
+              memory: 2Gi
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: transmission-config
+        - name: downloads
+          nfs:
+            server: 10.0.20.12
+            path: /mnt/media/downloads
