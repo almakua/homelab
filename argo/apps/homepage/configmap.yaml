@@ -29,7 +29,7 @@ data:
             widget:
               type: plex
               url: http://plex.media.svc.cluster.local:32400
-              key: PLEX_TOKEN_HERE
+              key: 22xXMsAUW-ELmyMY-w1r
         - Transmission:
             href: https://transmission.mbianchi.me
             description: Torrent client
@@ -46,7 +46,7 @@ data:
             widget:
               type: radarr
               url: http://radarr.media.svc.cluster.local:7878
-              key: RADARR_API_KEY_HERE
+              key: 11bde6954e08458fa8581af407df96b5
         - Sonarr:
             href: https://sonarr.mbianchi.me
             description: TV Series
@@ -54,7 +54,7 @@ data:
             widget:
               type: sonarr
               url: http://sonarr.media.svc.cluster.local:8989
-              key: SONARR_API_KEY_HERE
+              key: fe137af54fd1420e9eed4426dcbeb8fd
 
     - Management:
         - Prowlarr:
@@ -64,7 +64,7 @@ data:
             widget:
               type: prowlarr
               url: http://prowlarr.media.svc.cluster.local:9696
-              key: PROWLARR_API_KEY_HERE
+              key: 1f98fd80b2d6400099b6246fac78ea29
         - ArgoCD:
             href: https://argo.mbianchi.me
             description: GitOps controller
