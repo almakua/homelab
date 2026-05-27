@@ -1,0 +1,119 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homepage-config
+  namespace: homepage
+data:
+  settings.yaml: |
+    title: Homelab Dashboard
+    theme: dark
+    color: slate
+    headerStyle: clean
+    layout:
+      Media:
+        style: row
+        columns: 4
+      Management:
+        style: row
+        columns: 3
+      Infrastructure:
+        style: row
+        columns: 3
+
+  services.yaml: |
+    - Media:
+        - Plex:
+            href: https://plex.mbianchi.me
+            description: Media server
+            icon: plex.png
+            widget:
+              type: plex
+              url: http://plex.media.svc.cluster.local:32400
+              key: PLEX_TOKEN_HERE
+        - Transmission:
+            href: https://transmission.mbianchi.me
+            description: Torrent client
+            icon: transmission.png
+            widget:
+              type: transmission
+              url: http://transmission.media.svc.cluster.local:9091
+              username: ""
+              password: ""
+        - Radarr:
+            href: https://radarr.mbianchi.me
+            description: Movies
+            icon: radarr.png
+            widget:
+              type: radarr
+              url: http://radarr.media.svc.cluster.local:7878
+              key: RADARR_API_KEY_HERE
+        - Sonarr:
+            href: https://sonarr.mbianchi.me
+            description: TV Series
+            icon: sonarr.png
+            widget:
+              type: sonarr
+              url: http://sonarr.media.svc.cluster.local:8989
+              key: SONARR_API_KEY_HERE
+
+    - Management:
+        - Prowlarr:
+            href: https://prowlarr.mbianchi.me
+            description: Indexer manager
+            icon: prowlarr.png
+            widget:
+              type: prowlarr
+              url: http://prowlarr.media.svc.cluster.local:9696
+              key: PROWLARR_API_KEY_HERE
+        - ArgoCD:
+            href: https://argo.mbianchi.me
+            description: GitOps controller
+            icon: argocd.png
+        - Pi-hole:
+            href: https://pihole.mbianchi.me
+            description: DNS & ad-blocker
+            icon: pi-hole.png
+
+    - Infrastructure:
+        - WireGuard:
+            href: https://wg.mbianchi.me
+            description: VPN management
+            icon: wireguard.png
+        - Proxmox boromir:
+            href: https://10.0.20.11:8006
+            description: Hypervisor (7700HQ)
+            icon: proxmox.png
+        - Proxmox gandalf:
+            href: https://10.0.20.10:8006
+            description: Hypervisor (7500U)
+            icon: proxmox.png
+
+  widgets.yaml: |
+    - resources:
+        cpu: true
+        memory: true
+        disk: /
+    - search:
+        provider: duckduckgo
+        target: _blank
+    - datetime:
+        format:
+          timeStyle: short
+          dateStyle: short
+
+  bookmarks.yaml: |
+    - Documentation:
+        - Kubernetes:
+            - abbr: K8S
+              href: https://kubernetes.io/docs/
+        - Talos:
+            - abbr: TLS
+              href: https://www.talos.dev/docs/
+        - ArgoCD:
+            - abbr: ARG
+              href: https://argo-cd.readthedocs.io/
+
+  docker.yaml: |
+    # vuoto, non usiamo Docker
+  kubernetes.yaml: |
+    mode: cluster
