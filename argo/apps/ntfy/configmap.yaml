@@ -16,3 +16,4 @@ data:
     attachment-total-size-limit: "5G"
     attachment-file-size-limit: "15M"
     keepalive-interval: "45s"
+    upstream-base-url: "https://ntfy.sh"
