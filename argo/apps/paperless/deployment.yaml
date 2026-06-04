@@ -17,6 +17,7 @@ spec:
     spec:
       nodeSelector:
         node-role: light
+      enableServiceLinks: false    # disabilita iniezione env var dei Service
       containers:
         - name: paperless
           image: ghcr.io/paperless-ngx/paperless-ngx:latest
