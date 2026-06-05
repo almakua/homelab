@@ -42,12 +42,12 @@ spec:
             - name: REDIS_PORT
               value: "6379"
             - name: UPLOAD_LOCATION
-              value: /data
+              value: /photos
             - name: TZ
               value: Europe/Rome
           volumeMounts:
             - name: photos
-              mountPath: /data
+              mountPath: /photos
           resources:
             requests:
               cpu: 200m
