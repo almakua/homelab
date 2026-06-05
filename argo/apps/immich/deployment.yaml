@@ -47,7 +47,7 @@ spec:
               value: Europe/Rome
           volumeMounts:
             - name: photos
-              mountPath: /photos
+              mountPath: /data
           resources:
             requests:
               cpu: 200m
