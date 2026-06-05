@@ -5,6 +5,7 @@ metadata:
   namespace: nextcloud
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true" # Forza il redirect HTTP -> HTTPS
     nginx.ingress.kubernetes.io/whitelist-source-range: "10.42.0.0/16,10.0.20.0/24,10.8.0.0/24,10.0.10.0/24"
     nginx.ingress.kubernetes.io/proxy-body-size: "0"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
