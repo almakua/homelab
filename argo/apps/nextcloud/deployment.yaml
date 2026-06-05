@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nextcloud
+  namespace: nextcloud
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: nextcloud
+  template:
+    metadata:
+      labels:
+        app: nextcloud
+    spec:
+      nodeSelector:
+        node-role: light
+      enableServiceLinks: false
+      containers:
+        - name: nextcloud
+          image: nextcloud:30-apache
+          ports:
+            - containerPort: 80
+          env:
+            - name: POSTGRES_HOST
+              value: postgres.databases.svc.cluster.local
+            - name: POSTGRES_DB
+              value: nextcloud
+            - name: POSTGRES_USER
+              value: nextcloud
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nextcloud-secret
+                  key: db-password
+            - name: REDIS_HOST
+              value: redis.databases.svc.cluster.local
+            - name: REDIS_HOST_PORT
+              value: "6379"
+            - name: NEXTCLOUD_ADMIN_USER
+              value: admin
+            - name: NEXTCLOUD_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nextcloud-secret
+                  key: admin-password
+            - name: NEXTCLOUD_TRUSTED_DOMAINS
+              value: "nextcloud.mbianchi.me"
+            - name: NEXTCLOUD_DATA_DIR
+              value: /var/www/html/data
+            - name: TZ
+              value: Europe/Rome
+          volumeMounts:
+            - name: data
+              mountPath: /var/www/html
+            - name: storage
+              mountPath: /var/www/html/data
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 2000m
+              memory: 2Gi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: nextcloud-data
+        - name: storage
+          persistentVolumeClaim:
+            claimName: nextcloud-storage
