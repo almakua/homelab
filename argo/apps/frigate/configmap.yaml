@@ -23,21 +23,26 @@ data:
           - ffmpeg:taverna#audio=aac
         taverna_sub:
           - rtsp://viewer:${CAM_PASSWORD}@10.0.40.22:554/stream2
-        giardino_ingresso:
+        cameretta:
           - rtsp://viewer:${CAM_PASSWORD}@10.0.40.23:554/stream1
+          - ffmpeg:cameretta#audio=aac
+        cameretta_sub:
+          - rtsp://viewer:${CAM_PASSWORD}@10.0.40.23:554/stream2
+        giardino_ingresso:
+          - rtsp://viewer:${CAM_PASSWORD}@10.0.40.24:554/stream1
           - ffmpeg:giardino_ingresso#audio=aac
         giardino_ingresso_sub:
-          - rtsp://viewer:${CAM_PASSWORD}@10.0.40.23:554/stream2
+          - rtsp://viewer:${CAM_PASSWORD}@10.0.40.24:554/stream2
         giardino_cucina:
-          - rtsp://viewer:${CAM_PASSWORD}@10.0.40.24:554/stream1
+          - rtsp://viewer:${CAM_PASSWORD}@10.0.40.25:554/stream1
           - ffmpeg:giardino_cucina#audio=aac
         giardino_cucina_sub:
-          - rtsp://viewer:${CAM_PASSWORD}@10.0.40.24:554/stream2
+          - rtsp://viewer:${CAM_PASSWORD}@10.0.40.25:554/stream2
         giardino_retro:
-          - rtsp://viewer:${CAM_PASSWORD}@10.0.40.25:554/stream1
+          - rtsp://viewer:${CAM_PASSWORD}@10.0.40.26:554/stream1
           - ffmpeg:giardino_retro#audio=aac
         giardino_retro_sub:
-          - rtsp://viewer:${CAM_PASSWORD}@10.0.40.25:554/stream2
+          - rtsp://viewer:${CAM_PASSWORD}@10.0.40.26:554/stream2
 
     detectors:
       ov:
@@ -69,6 +74,18 @@ data:
               input_args: preset-rtsp-restream
               roles: [record]
             - path: rtsp://127.0.0.1:8554/taverna_sub
+              input_args: preset-rtsp-restream
+              roles: [detect]
+
+      cameretta:
+        ffmpeg:
+          output_args:
+            record: preset-record-generic-audio-copy
+          inputs:
+            - path: rtsp://127.0.0.1:8554/cameretta
+              input_args: preset-rtsp-restream
+              roles: [record]
+            - path: rtsp://127.0.0.1:8554/cameretta_sub
               input_args: preset-rtsp-restream
               roles: [detect]
 
