@@ -41,15 +41,24 @@ detectors:
   ov:
     type: openvino
     device: CPU
+    model:
+      path: /openvino-model/ssdlite_mobilenet_v2.xml
+
+model:
+  width: 300
+  height: 300
+  input_tensor: nhwc
+  input_pixel_format: bgr
+  path: /openvino-model/ssdlite_mobilenet_v2.xml
 
 ffmpeg:
   hwaccel_args: []
+  output_args:
+    record: -f segment -segment_time 10 -segment_format mp4 -reset_timestamps 1 -strftime 1 -c:v copy -c:a aac
 
 cameras:
   cucina:
     ffmpeg:
-      output_args:
-        record: preset-record-generic-audio-copy
       inputs:
         - path: rtsp://127.0.0.1:8554/cucina
           input_args: preset-rtsp-restream
@@ -60,8 +69,6 @@ cameras:
 
   taverna:
     ffmpeg:
-      output_args:
-        record: preset-record-generic-audio-copy
       inputs:
         - path: rtsp://127.0.0.1:8554/taverna
           input_args: preset-rtsp-restream
@@ -72,8 +79,6 @@ cameras:
 
   cameretta:
     ffmpeg:
-      output_args:
-        record: preset-record-generic-audio-copy
       inputs:
         - path: rtsp://127.0.0.1:8554/cameretta
           input_args: preset-rtsp-restream
@@ -84,8 +89,6 @@ cameras:
 
   giardino_ingresso:
     ffmpeg:
-      output_args:
-        record: preset-record-generic-audio-copy
       inputs:
         - path: rtsp://127.0.0.1:8554/giardino_ingresso
           input_args: preset-rtsp-restream
@@ -96,8 +99,6 @@ cameras:
 
   giardino_cucina:
     ffmpeg:
-      output_args:
-        record: preset-record-generic-audio-copy
       inputs:
         - path: rtsp://127.0.0.1:8554/giardino_cucina
           input_args: preset-rtsp-restream
@@ -108,8 +109,6 @@ cameras:
 
   giardino_retro:
     ffmpeg:
-      output_args:
-        record: preset-record-generic-audio-copy
       inputs:
         - path: rtsp://127.0.0.1:8554/giardino_retro
           input_args: preset-rtsp-restream

@@ -58,6 +58,8 @@ spec:
               mountPath: /config
             - name: recordings
               mountPath: /media/frigate
+            - name: dshm
+              mountPath: /dev/shm
           resources:
             requests:
               cpu: 500m
@@ -78,6 +80,10 @@ spec:
           nfs:
             server: 10.0.20.12
             path: /mnt/media/frigate
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 128Mi
 ---
 apiVersion: v1
 kind: Service
