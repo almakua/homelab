@@ -126,7 +126,7 @@ detect:
 record:
   enabled: true
   retain:
-    days: 30
+    days: 20
     mode: motion
 
 version: 0.16-0
