@@ -18,9 +18,25 @@ spec:
       nodeSelector:
         node-role: heavy
       initContainers:
-        - name: copy-config
+        - name: config-init
           image: busybox
-          command: ["sh", "-c", "cp /config-ro/config.yaml /config/config.yaml"]
+          command:
+            - sh
+            - -c
+            - |
+              sed "s|\${MQTT_PASSWORD}|${MQTT_PASSWORD}|g; s|\${CAM_PASSWORD}|${CAM_PASSWORD}|g" \
+                /config-ro/config.yaml > /config/config.yaml
+          env:
+            - name: MQTT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: frigate-secret
+                  key: mqtt-password
+            - name: CAM_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: frigate-secret
+                  key: cam-password
           volumeMounts:
             - name: config-storage
               mountPath: /config
@@ -35,16 +51,6 @@ spec:
             - containerPort: 8554   # go2rtc RTSP
             - containerPort: 8555   # go2rtc WebRTC
           env:
-            - name: MQTT_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: frigate-secret
-                  key: mqtt-password
-            - name: CAM_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: frigate-secret
-                  key: cam-password
             - name: TZ
               value: Europe/Rome
           volumeMounts:
