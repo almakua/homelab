@@ -50,6 +50,12 @@ spec:
               value: "nextcloud.mbianchi.me"
             - name: NEXTCLOUD_DATA_DIR
               value: /var/www/html/data
+            - name: OVERWRITEPROTOCOL
+              value: https
+            - name: OVERWRITECLIURL
+              value: https://nextcloud.mbianchi.me
+            - name: TRUSTED_PROXIES
+              value: "10.42.0.0/16"
             - name: TZ
               value: Europe/Rome
           volumeMounts:
