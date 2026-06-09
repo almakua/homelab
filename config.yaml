@@ -121,7 +121,7 @@ detect:
   enabled: true
   width: 640
   height: 360
-  fps: 5
+  fps: 3
 
 record:
   enabled: true
