@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frigate
+  namespace: frigate
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: frigate
+  template:
+    metadata:
+      labels:
+        app: frigate
+    spec:
+      nodeSelector:
+        node-role: heavy
+      containers:
+        - name: frigate
+          image: ghcr.io/blakeblackshear/frigate:0.16.0
+          ports:
+            - containerPort: 5000   # UI
+            - containerPort: 8554   # go2rtc RTSP
+            - containerPort: 8555   # go2rtc WebRTC
+          env:
+            - name: MQTT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: frigate-secret
+                  key: mqtt-password
+            - name: CAM_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: frigate-secret
+                  key: cam-password
+            - name: TZ
+              value: Europe/Rome
+          volumeMounts:
+            - name: config-storage
+              mountPath: /config
+            - name: config-file
+              mountPath: /config/config.yaml
+              subPath: config.yaml
+            - name: recordings
+              mountPath: /media/frigate
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 4000m
+              memory: 4Gi
+          securityContext:
+            privileged: false
+      volumes:
+        - name: config-storage
+          persistentVolumeClaim:
+            claimName: frigate-config
+        - name: config-file
+          configMap:
+            name: frigate-config
+        - name: recordings
+          nfs:
+            server: 10.0.20.12
+            path: /mnt/media/frigate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frigate
+  namespace: frigate
+spec:
+  selector:
+    app: frigate
+  ports:
+    - name: http
+      port: 5000
+      targetPort: 5000
+    - name: rtsp
+      port: 8554
+      targetPort: 8554
+    - name: webrtc
+      port: 8555
+      targetPort: 8555

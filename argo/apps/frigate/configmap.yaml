@@ -1,0 +1,127 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frigate-config
+  namespace: frigate
+data:
+  config.yaml: |
+    mqtt:
+      enabled: true
+      host: 10.0.20.26
+      user: admin
+      password: ${MQTT_PASSWORD}
+
+    go2rtc:
+      streams:
+        cucina:
+          - rtsp://viewer:${CAM_PASSWORD}@10.0.40.21:554/stream1
+          - ffmpeg:cucina#audio=aac
+        cucina_sub:
+          - rtsp://viewer:${CAM_PASSWORD}@10.0.40.21:554/stream2
+        taverna:
+          - rtsp://viewer:${CAM_PASSWORD}@10.0.40.22:554/stream1
+          - ffmpeg:taverna#audio=aac
+        taverna_sub:
+          - rtsp://viewer:${CAM_PASSWORD}@10.0.40.22:554/stream2
+        giardino_ingresso:
+          - rtsp://viewer:${CAM_PASSWORD}@10.0.40.23:554/stream1
+          - ffmpeg:giardino_ingresso#audio=aac
+        giardino_ingresso_sub:
+          - rtsp://viewer:${CAM_PASSWORD}@10.0.40.23:554/stream2
+        giardino_cucina:
+          - rtsp://viewer:${CAM_PASSWORD}@10.0.40.24:554/stream1
+          - ffmpeg:giardino_cucina#audio=aac
+        giardino_cucina_sub:
+          - rtsp://viewer:${CAM_PASSWORD}@10.0.40.24:554/stream2
+        giardino_retro:
+          - rtsp://viewer:${CAM_PASSWORD}@10.0.40.25:554/stream1
+          - ffmpeg:giardino_retro#audio=aac
+        giardino_retro_sub:
+          - rtsp://viewer:${CAM_PASSWORD}@10.0.40.25:554/stream2
+
+    detectors:
+      ov:
+        type: openvino
+        device: CPU
+
+    ffmpeg:
+      hwaccel_args: []
+
+    cameras:
+      cucina:
+        ffmpeg:
+          output_args:
+            record: preset-record-generic-audio-copy
+          inputs:
+            - path: rtsp://127.0.0.1:8554/cucina
+              input_args: preset-rtsp-restream
+              roles: [record]
+            - path: rtsp://127.0.0.1:8554/cucina_sub
+              input_args: preset-rtsp-restream
+              roles: [detect]
+
+      taverna:
+        ffmpeg:
+          output_args:
+            record: preset-record-generic-audio-copy
+          inputs:
+            - path: rtsp://127.0.0.1:8554/taverna
+              input_args: preset-rtsp-restream
+              roles: [record]
+            - path: rtsp://127.0.0.1:8554/taverna_sub
+              input_args: preset-rtsp-restream
+              roles: [detect]
+
+      giardino_ingresso:
+        ffmpeg:
+          output_args:
+            record: preset-record-generic-audio-copy
+          inputs:
+            - path: rtsp://127.0.0.1:8554/giardino_ingresso
+              input_args: preset-rtsp-restream
+              roles: [record]
+            - path: rtsp://127.0.0.1:8554/giardino_ingresso_sub
+              input_args: preset-rtsp-restream
+              roles: [detect]
+
+      giardino_cucina:
+        ffmpeg:
+          output_args:
+            record: preset-record-generic-audio-copy
+          inputs:
+            - path: rtsp://127.0.0.1:8554/giardino_cucina
+              input_args: preset-rtsp-restream
+              roles: [record]
+            - path: rtsp://127.0.0.1:8554/giardino_cucina_sub
+              input_args: preset-rtsp-restream
+              roles: [detect]
+
+      giardino_retro:
+        ffmpeg:
+          output_args:
+            record: preset-record-generic-audio-copy
+          inputs:
+            - path: rtsp://127.0.0.1:8554/giardino_retro
+              input_args: preset-rtsp-restream
+              roles: [record]
+            - path: rtsp://127.0.0.1:8554/giardino_retro_sub
+              input_args: preset-rtsp-restream
+              roles: [detect]
+
+    detect:
+      enabled: true
+      width: 640
+      height: 360
+      fps: 5
+
+    record:
+      enabled: true
+      retain:
+        days: 30
+        mode: motion
+      events:
+        retain:
+          default: 60
+          mode: motion
+
+    version: 0.16-0
