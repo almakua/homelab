@@ -17,6 +17,16 @@ spec:
     spec:
       nodeSelector:
         node-role: heavy
+      initContainers:
+        - name: copy-config
+          image: busybox
+          command: ["sh", "-c", "cp /config-ro/config.yaml /config/config.yaml"]
+          volumeMounts:
+            - name: config-storage
+              mountPath: /config
+            - name: config-file
+              mountPath: /config-ro/config.yaml
+              subPath: config.yaml
       containers:
         - name: frigate
           image: ghcr.io/blakeblackshear/frigate:0.16.0
@@ -40,9 +50,6 @@ spec:
           volumeMounts:
             - name: config-storage
               mountPath: /config
-            - name: config-file
-              mountPath: /config/config.yaml
-              subPath: config.yaml
             - name: recordings
               mountPath: /media/frigate
           resources:
