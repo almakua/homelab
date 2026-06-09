@@ -4,7 +4,7 @@ metadata:
   name: paperless
   namespace: paperless
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
+    cert-manager.io/cluster-issuer: letsencrypt-prod-dns
     nginx.ingress.kubernetes.io/whitelist-source-range: "10.42.0.0/16,10.0.20.0/24,10.8.0.0/24,10.0.10.0/24"
     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
 spec:

@@ -4,7 +4,7 @@ metadata:
   name: pihole
   namespace: pihole
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
+    cert-manager.io/cluster-issuer: letsencrypt-prod-dns
     nginx.ingress.kubernetes.io/whitelist-source-range: "10.0.10.0/24,10.0.20.0/24,10.8.0.0/24"
     # Pi-hole web richiede /admin come path
     nginx.ingress.kubernetes.io/rewrite-target: /admin/$1

@@ -1,0 +1,21 @@
+# Service senza selettore + Endpoints esplicito verso la VM HAOS fuori dal cluster
+apiVersion: v1
+kind: Service
+metadata:
+  name: home-assistant
+  namespace: home-assistant
+spec:
+  ports:
+    - port: 8123
+      targetPort: 8123
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: home-assistant
+  namespace: home-assistant
+subsets:
+  - addresses:
+      - ip: 10.0.20.26
+    ports:
+      - port: 8123
