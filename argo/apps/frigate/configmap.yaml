@@ -119,9 +119,5 @@ data:
       retain:
         days: 30
         mode: motion
-      events:
-        retain:
-          default: 60
-          mode: motion
 
     version: 0.16-0
