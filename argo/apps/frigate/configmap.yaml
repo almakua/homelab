@@ -125,13 +125,13 @@ data:
               roles: [detect]
 
     detect:
-      enabled: true
+      enabled: false
       width: 640
       height: 360
       fps: 3
 
     record:
-      enabled: true
+      enabled: false
       retain:
         days: 20
         mode: motion
