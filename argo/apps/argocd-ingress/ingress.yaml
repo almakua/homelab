@@ -8,8 +8,8 @@ metadata:
     # ArgoCD usa gRPC — l'ingress deve fare passthrough TLS al server
     nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
     nginx.ingress.kubernetes.io/ssl-passthrough: "false"
-    # Whitelist VPN — ArgoCD raggiungibile solo dalla VPN
-    nginx.ingress.kubernetes.io/whitelist-source-range: "10.42.0.0/16,10.0.20.0/24,10.8.0.0/24,10.0.10.0/24"
+    # Autenticazione via Dex/OIDC (Authentik come identity provider) configurata
+    # lato ArgoCD stesso, non tramite forward-auth: preserva argocd CLI/gRPC.
 spec:
   ingressClassName: nginx
   tls:

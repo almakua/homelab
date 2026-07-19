@@ -202,11 +202,17 @@ Poi apri `https://auth.mbianchi.me` nel browser (dovrebbe già funzionare tramit
 3. **Applications → Outposts**:
    - Apri l'`authentik Embedded Outpost`.
    - Nella lista "Applications", seleziona/aggiungi l'Application creata al punto 2.
-   - Salva. Dopo qualche secondo dovrebbe comparire il Service Kubernetes:
-     ```bash
-     kubectl -n authentik get svc | grep outpost
-     ```
-     Verifica che il nome corrisponda a quello già usato nelle annotazioni (`ak-outpost-authentik-embedded-outpost`); se differisce, aggiorna l'annotazione `auth-url` in tutti gli ingress elencati al punto 3.5 sotto.
+   - Salva.
+
+   ⚠️ **Non aspettarti un nuovo pod o Service**: l'embedded outpost gira *dentro* il processo di `authentik-server` stesso, non viene creato nessun Deployment/Service separato (questo succede solo se assegni all'outpost una "Kubernetes Service Connection", che qui non serve). Verifica invece così:
+   ```bash
+   kubectl -n authentik get svc
+   # atteso: solo authentik-server, authentik-postgresql, authentik-postgresql-hl — nessun "ak-outpost-*"
+   ```
+   Le annotazioni `auth-url` puntano quindi direttamente al Service `authentik-server` (porta 80), non a un service outpost separato — è già così nei file di questo repo:
+   ```
+   nginx.ingress.kubernetes.io/auth-url: "http://authentik-server.authentik.svc.cluster.local:80/outpost.goauthentik.io/auth/nginx"
+   ```
 
 ### 3.5 Verifica il forward-auth
 

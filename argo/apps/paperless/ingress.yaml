@@ -5,7 +5,8 @@ metadata:
   namespace: paperless
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod-dns
-    nginx.ingress.kubernetes.io/whitelist-source-range: "10.42.0.0/16,10.0.20.0/24,10.8.0.0/24,10.0.10.0/24"
+    # Autenticazione via PAPERLESS_ENABLE_HTTP_REMOTE_USER + header Authentik,
+    # non forward-auth bloccante: preserva le integrazioni API/mobile.
     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
 spec:
   ingressClassName: nginx

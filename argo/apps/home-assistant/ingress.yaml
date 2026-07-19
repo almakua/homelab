@@ -6,7 +6,9 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod-dns
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/whitelist-source-range: "10.42.0.0/16,10.0.20.0/24,10.8.0.0/24,10.0.10.0/24"
+    # Accesso gestito da una Cloudflare Access Application dedicata (vedi runbook,
+    # Fase 4) invece della whitelist VPN o di Authentik — compatibile con la app
+    # companion HA tramite Service Token.
     nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
     # WebSocket necessario per Home Assistant real-time

@@ -13,6 +13,12 @@ data:
       Media:
         style: row
         columns: 4
+      Cloud:
+        style: row
+        columns: 3
+      Home:
+        style: row
+        columns: 3
       Management:
         style: row
         columns: 3
@@ -55,6 +61,34 @@ data:
               type: sonarr
               url: http://sonarr.media.svc.cluster.local:8989
               key: fe137af54fd1420e9eed4426dcbeb8fd
+        - Bazarr:
+            href: https://bazarr.mbianchi.me
+            description: Subtitles
+            icon: bazarr.png
+
+    - Cloud:
+        - Immich:
+            href: https://immich.mbianchi.me
+            description: Photos
+            icon: immich.png
+        - Nextcloud:
+            href: https://nextcloud.mbianchi.me
+            description: Files & sync
+            icon: nextcloud.png
+        - Paperless:
+            href: https://paperless.mbianchi.me
+            description: Documents
+            icon: paperless-ngx.png
+
+    - Home:
+        - Home Assistant:
+            href: https://homeassistant.mbianchi.me
+            description: Home automation
+            icon: home-assistant.png
+        - Frigate:
+            href: https://frigate.mbianchi.me
+            description: NVR / cameras
+            icon: frigate.png
 
     - Management:
         - Prowlarr:
@@ -73,12 +107,16 @@ data:
             href: https://pihole.mbianchi.me
             description: DNS & ad-blocker
             icon: pi-hole.png
+        - Authentik:
+            href: https://auth.mbianchi.me
+            description: SSO / identity provider
+            icon: authentik.png
+        - ntfy:
+            href: https://ntfy.mbianchi.me
+            description: Push notifications
+            icon: ntfy.png
 
     - Infrastructure:
-        - WireGuard:
-            href: https://wg.mbianchi.me
-            description: VPN management
-            icon: wireguard.png
         - Proxmox boromir:
             href: https://10.0.20.11:8006
             description: Hypervisor (7700HQ)
