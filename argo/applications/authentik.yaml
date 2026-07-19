@@ -1,0 +1,68 @@
+# Verificare i nomi esatti delle subchart/valori contro il README del chart alla
+# versione effettivamente installata (targetRevision) — la struttura values sotto
+# è quella del chart goauthentik/helm corrente al momento della stesura del piano.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: authentik
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://charts.goauthentik.io
+    targetRevision: 2026.5.5
+    chart: authentik
+    helm:
+      values: |
+        global:
+          envFrom:
+            - secretRef:
+                name: authentik-secrets
+        authentik:
+          postgresql:
+            host: authentik-postgresql
+          redis:
+            host: authentik-redis-master
+        server:
+          ingress:
+            enabled: true
+            ingressClassName: nginx
+            annotations:
+              cert-manager.io/cluster-issuer: letsencrypt-prod-dns
+              # Nessun whitelist-source-range e nessuna annotazione auth-* qui:
+              # Authentik e' l'identity provider, non puo' fare forward-auth su se stesso.
+            hosts:
+              - host: auth.mbianchi.me
+                paths:
+                  - path: /
+                    pathType: Prefix
+            tls:
+              - hosts: [auth.mbianchi.me]
+                secretName: authentik-tls
+        postgresql:
+          enabled: true
+          auth:
+            username: authentik
+            database: authentik
+            existingSecret: authentik-secrets
+            secretKeys:
+              adminPasswordKey: AUTHENTIK_POSTGRESQL__PASSWORD
+              userPasswordKey: AUTHENTIK_POSTGRESQL__PASSWORD
+        redis:
+          enabled: true
+          auth:
+            enabled: true
+            existingSecret: authentik-secrets
+            existingSecretPasswordKey: AUTHENTIK_REDIS__PASSWORD
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: authentik
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
