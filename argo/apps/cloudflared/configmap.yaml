@@ -1,0 +1,20 @@
+# TUNNEL_ID va sostituito con l'output reale di `cloudflared tunnel create homelab`
+# (vedi runbook, Fase 1). Il routing per hostname resta a carico di ingress-nginx:
+# aggiungere un servizio = aggiungere un Ingress + un record DNS, non serve toccare questo file.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudflared-config
+  namespace: cloudflare-tunnel
+data:
+  config.yml: |
+    tunnel: cf16469c-fd9e-4823-ac2f-febc283a2b20 
+    credentials-file: /etc/cloudflared/creds/credentials.json
+    metrics: 0.0.0.0:2000
+    no-autoupdate: true
+    ingress:
+      - hostname: mbianchi.me
+        service: http://ingress-nginx-controller.ingress-nginx.svc.cluster.local:80
+      - hostname: "*.mbianchi.me"
+        service: http://ingress-nginx-controller.ingress-nginx.svc.cluster.local:80
+      - service: http_status:404
