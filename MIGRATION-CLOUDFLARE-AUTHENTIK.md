@@ -216,6 +216,10 @@ Poi apri `https://auth.mbianchi.me` nel browser (dovrebbe già funzionare tramit
 
 ### 3.5 Verifica il forward-auth
 
+⚠️ **Se il tuo ingress-nginx ha gli snippet disabilitati** (verifica con `kubectl -n ingress-nginx get configmap ingress-nginx-controller -o jsonpath='{.data.allow-snippet-annotations}'` — se torna `false`, è il tuo caso), l'annotazione `auth-snippet` viene **rifiutata dall'admission webhook** e l'intero sync dell'Ingress fallisce, lasciando in produzione la vecchia configurazione (whitelist). Il sintomo è un **403 Forbidden** persistente anche dopo il push: il tunnel Cloudflare cambia l'IP sorgente visto da nginx, che con la vecchia whitelist ancora attiva nega l'accesso. Se ti càpita, controlla `kubectl get application <nome-app> -n argocd -o jsonpath='{.status.operationState.message}'` — se vedi "Snippet directives are disabled", è questo.
+
+Non serve comunque: l'annotazione `auth-snippet` (che impostava `X-Forwarded-Host`) è ridondante — nginx-ingress imposta già di default `X-Original-URL` (con l'host originale incluso) sulla subrequest verso `auth-url`, che è quello che Authentik usa per ricostruire l'URL a cui reindirizzare dopo il login. I file di questo repo **non** includono più `auth-snippet` per questo motivo.
+
 Le annotazioni sono già applicate su questi file (già modificati in questo commit): `argo/apps/homepage/ingress.yaml`, `argo/apps/pihole/ingress.yaml`, `argo/apps/transmission/ingress.yaml`, `argo/apps/frigate/ingress.yaml`, `argo/apps/radarr/deployment.yaml`, `argo/apps/sonarr/deployment.yaml`, `argo/apps/prowlarr/deployment.yaml`, `argo/apps/bazarr/deployment.yaml`. Sono già stati rimossi anche i whitelist da `argo/apps/argocd-ingress/ingress.yaml`, `argo/apps/immich/ingress.yaml`, `argo/apps/nextcloud/ingress.yaml`, `argo/apps/paperless/ingress.yaml`, `argo/apps/home-assistant/ingress.yaml` (questi ultimi 5 **non** hanno annotazioni auth-*, vedi Fase 3.6 e Fase 4).
 
 Committa e pusha tutte queste modifiche già pronte insieme (se non l'hai già fatto):
@@ -276,8 +280,9 @@ Per ciascuno di questi 4 servizi, crea in Authentik un **OAuth2/OpenID Provider*
 3. Verifica login da web; i client desktop/mobile di sync continuano a usare le app-password esistenti, non toccati.
 
 #### Paperless-ngx
-1. Aggiungi al Deployment di Paperless (`argo/apps/paperless/`) la variabile d'ambiente `PAPERLESS_ENABLE_HTTP_REMOTE_USER: "true"` e `PAPERLESS_LOGOUT_REDIRECT_URL`.
-2. Aggiungi all'ingress di Paperless (`argo/apps/paperless/ingress.yaml`) le sole annotazioni `auth-url`/`auth-signin`/`auth-snippet` (senza bisogno di `auth-response-headers` completo) più uno snippet che propaga `X-authentik-username` come header `Remote-User` atteso da Paperless — verifica la sintassi esatta nella documentazione Paperless-ngx (`HTTP_REMOTE_USER` doc) al momento dell'implementazione, perché il nome header/variabile può differire tra versioni.
+⚠️ Se sul tuo cluster gli snippet ingress-nginx sono disabilitati (vedi nota nella Fase 3.5), **non puoi** usare `auth-snippet` per rinominare l'header. Verifica invece se la tua versione di Paperless-ngx supporta `PAPERLESS_HTTP_REMOTE_USER_HEADER_NAME` (aggiunta nelle versioni più recenti): permette di dire a Paperless di leggere direttamente l'header che Authentik già restituisce (`HTTP_X_AUTHENTIK_USERNAME`), senza bisogno di rinominarlo via snippet.
+1. Aggiungi al Deployment di Paperless (`argo/apps/paperless/`) le variabili d'ambiente `PAPERLESS_ENABLE_HTTP_REMOTE_USER: "true"` e, se supportata dalla tua versione, `PAPERLESS_HTTP_REMOTE_USER_HEADER_NAME: "HTTP_X_AUTHENTIK_USERNAME"` (altrimenti verifica nella documentazione Paperless-ngx corrente come mappare l'header senza snippet, es. tramite un middleware/sidecar leggero, oppure passa a OIDC nativo se disponibile nella tua versione).
+2. Aggiungi all'ingress di Paperless (`argo/apps/paperless/ingress.yaml`) solo `auth-url`/`auth-signin`/`auth-response-headers` (che deve includere `X-authentik-username`), **senza** `auth-snippet`.
 
 ---
 
