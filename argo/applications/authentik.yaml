@@ -23,8 +23,6 @@ spec:
         authentik:
           postgresql:
             host: authentik-postgresql
-          redis:
-            host: authentik-redis-master
         server:
           ingress:
             enabled: true
@@ -34,10 +32,7 @@ spec:
               # Nessun whitelist-source-range e nessuna annotazione auth-* qui:
               # Authentik e' l'identity provider, non puo' fare forward-auth su se stesso.
             hosts:
-              - host: auth.mbianchi.me
-                paths:
-                  - path: /
-                    pathType: Prefix
+              - auth.mbianchi.me
             tls:
               - hosts: [auth.mbianchi.me]
                 secretName: authentik-tls
@@ -50,12 +45,6 @@ spec:
             secretKeys:
               adminPasswordKey: AUTHENTIK_POSTGRESQL__PASSWORD
               userPasswordKey: AUTHENTIK_POSTGRESQL__PASSWORD
-        redis:
-          enabled: true
-          auth:
-            enabled: true
-            existingSecret: authentik-secrets
-            existingSecretPasswordKey: AUTHENTIK_REDIS__PASSWORD
   destination:
     server: https://kubernetes.default.svc
     namespace: authentik
