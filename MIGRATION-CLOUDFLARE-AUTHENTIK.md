@@ -240,6 +240,33 @@ Poi apri `https://auth.mbianchi.me` nel browser (dovrebbe già funzionare tramit
    nginx.ingress.kubernetes.io/auth-url: "http://auth.mbianchi.me/outpost.goauthentik.io/auth/nginx"
    ```
 
+   ⚠️ **Conseguenza del rewrite per qualunque client OIDC (Dex, Immich, Nextcloud, Paperless, ecc.)**: connettendosi direttamente al Service `authentik-server` sulla porta **443**, questi client trovano il certificato **self-signed interno** di Authentik (non quello Let's Encrypt, che nginx-ingress termina solo per il traffico che passa da lì) — falliscono con errori tipo `certificate is valid for *, not auth.mbianchi.me` (Dex) o `TypeError: fetch failed` (Immich/Node, che non ha un flag "skip verify" configurabile per-provider). La soluzione **generale e definitiva** — fatta una volta sola, vale per tutti i client futuri — è importare in Authentik il certificato Let's Encrypt reale (quello già emesso da cert-manager per l'Ingress di Authentik) e impostarlo come "Web Certificate" del Brand, così il listener HTTPS interno di `authentik-server` lo usa al posto del self-signed:
+   ```bash
+   CERT=$(kubectl -n authentik get secret authentik-tls -o jsonpath='{.data.tls\.crt}' | base64 -d)
+   KEY=$(kubectl -n authentik get secret authentik-tls -o jsonpath='{.data.tls\.key}' | base64 -d)
+   kubectl -n authentik exec -i deploy/authentik-worker -- ak shell <<PYEOF
+   from authentik.crypto.models import CertificateKeyPair
+   from authentik.brands.models import Brand
+   cert_pem = '''$CERT'''
+   key_pem = '''$KEY'''
+   ckp, _ = CertificateKeyPair.objects.update_or_create(
+       name="auth.mbianchi.me (Let's Encrypt via cert-manager)",
+       defaults=dict(certificate_data=cert_pem, key_data=key_pem)
+   )
+   brand = Brand.objects.get(domain='authentik-default')
+   brand.web_certificate = ckp
+   brand.save()
+   PYEOF
+   kubectl -n authentik rollout restart deployment authentik-server
+   ```
+   ⚠️ Il certificato Let's Encrypt di `authentik-tls` **si rinnova periodicamente** (cert-manager lo ruota prima della scadenza) — se in futuro torna l'errore di certificato su un nuovo client OIDC, rieseguire lo stesso comando per re-importare la versione aggiornata (questo passaggio andrebbe idealmente automatizzato con un piccolo CronJob o un Blueprint Authentik, non ancora fatto in questo repo).
+
+   Verifica che funzioni:
+   ```bash
+   kubectl -n authentik exec deploy/authentik-worker -- curl -sv https://auth.mbianchi.me/application/o/argocd/.well-known/openid-configuration -o /dev/null 2>&1 | grep -i "certificate\|HTTP/"
+   # atteso: nessun "self-signed certificate", HTTP/1.1 200 OK
+   ```
+
 ### 3.5 Verifica il forward-auth
 
 ⚠️ **Se il tuo ingress-nginx ha gli snippet disabilitati** (verifica con `kubectl -n ingress-nginx get configmap ingress-nginx-controller -o jsonpath='{.data.allow-snippet-annotations}'` — se torna `false`, è il tuo caso), l'annotazione `auth-snippet` viene **rifiutata dall'admission webhook** e l'intero sync dell'Ingress fallisce, lasciando in produzione la vecchia configurazione (whitelist). Il sintomo è un **403 Forbidden** persistente anche dopo il push: il tunnel Cloudflare cambia l'IP sorgente visto da nginx, che con la vecchia whitelist ancora attiva nega l'accesso. Se ti càpita, controlla `kubectl get application <nome-app> -n argocd -o jsonpath='{.status.operationState.message}'` — se vedi "Snippet directives are disabled", è questo.
@@ -268,8 +295,14 @@ Poi apri da browser (in incognito, per non riusare la sessione Authentik già lo
 Per ciascuno di questi 4 servizi, crea in Authentik un **OAuth2/OpenID Provider** dedicato (Applications → Providers → Create → tipo **OAuth2/OpenID Provider**), poi un'Application collegata. Per ognuno ti servirà annotare **Client ID** e **Client Secret** generati da Authentik.
 
 #### ArgoCD
-1. In Authentik: Provider OAuth2, redirect URI `https://argo.mbianchi.me/auth/callback`, scope `openid profile email`.
-2. Modifica il ConfigMap `argocd-cm` (non è tracciato in questo repo — ArgoCD stesso è stato installato fuori da GitOps):
+1. In Authentik: Provider **OAuth2/OpenID**, redirect URI `https://argo.mbianchi.me/api/dex/callback` (⚠️ **non** `/auth/callback` — quel path è per l'integrazione OIDC diretta senza Dex; qui usiamo `dex.config`, quindi il redirect passa dal callback di Dex), tipo client **confidential**, signing key = un certificato esistente (es. "authentik Self-signed Certificate" — Applications → Customization → Certificates, già presente di default), scope mapping `openid`/`profile`/`email`. ⚠️ **Verifica che "Grant Types" includa almeno `authorization_code`** (e tipicamente anche `refresh_token`) — se creato tramite un procedimento che salta il wizard normale questo campo può restare vuoto, causando l'errore Authentik "Invalid grant_type for provider" → Dex/ArgoCD vedono un generico "The request is otherwise malformed". Crea poi un'Application collegata (slug `argocd`). Annota **Client ID** e **Client Secret**.
+   Nota: dopo il salvataggio, **riavvia sia `argocd-dex-server` sia `argocd-server`** (non solo Dex) — `argocd-server` deve ricaricare `argocd-cm` per esporre l'endpoint `/auth/login` che avvia il flusso SSO, altrimenti risponde 404.
+2. Salva il client secret in `argocd-secret` (pattern standard di ArgoCD per non metterlo in chiaro nel ConfigMap):
+   ```bash
+   kubectl -n argocd patch secret argocd-secret --type merge \
+     -p '{"stringData":{"dex.argocd.clientSecret":"<CLIENT_SECRET>"}}'
+   ```
+3. Modifica il ConfigMap `argocd-cm` (non è tracciato in questo repo — ArgoCD stesso è stato installato via Helm fuori da GitOps):
    ```bash
    kubectl -n argocd edit configmap argocd-cm
    ```
@@ -285,15 +318,23 @@ Per ciascuno di questi 4 servizi, crea in Authentik un **OAuth2/OpenID Provider*
            config:
              issuer: https://auth.mbianchi.me/application/o/argocd/
              clientID: <CLIENT_ID>
-             clientSecret: <CLIENT_SECRET>
+             clientSecret: $dex.argocd.clientSecret
              insecureEnableGroups: true
-             scopes: ["openid", "profile", "email"]
+             scopes: ["profile", "email"]
    ```
-3. Riavvia Dex:
+   (Non serve `insecureSkipVerify` se hai già fatto il fix del certificato reale in Fase 3, punto critico sopra — se non l'hai ancora fatto, Dex fallirà con `certificate is valid for *, not auth.mbianchi.me`: vai prima a sistemare quello, è un fix valido per tutti i client OIDC, non solo ArgoCD.)
+   ⚠️ **Non aggiungere `openid` alla lista `scopes`**: Dex lo richiede sempre automaticamente. Se lo includi anche tu, la scope string finale ha `openid` duplicato (`openid+openid+profile+email`) e Authentik rifiuta la richiesta con "The request is otherwise malformed".
+4. Riavvia sia Dex sia il server ArgoCD (**entrambi**, non solo Dex — `argocd-server` deve ricaricare la ConfigMap per esporre `/auth/login`):
    ```bash
    kubectl -n argocd rollout restart deployment argocd-dex-server
+   kubectl -n argocd rollout restart deployment argocd-server
    ```
-4. Verifica: `argocd login argo.mbianchi.me --sso` dalla CLI e login da browser mostrano il pulsante "Log in via Authentik".
+5. Verifica: `argocd login argo.mbianchi.me --sso` dalla CLI e login da browser mostrano il pulsante "Log in via Authentik" (controllabile anche via `curl -sk https://argo.mbianchi.me/api/v1/settings | grep -A3 dexConfig`). Se il click sul pulsante rimanda a `/login?has_sso_error=true`, controlla i log di `authentik-server` (`kubectl -n authentik logs deploy/authentik-server --tail 20`) — l'errore più comune è `"Invalid grant_type for provider"`, che indica che il campo **Grant Types** del Provider non include `authorization_code`.
+6. ⚠️ **Dopo il login SSO, ArgoCD mostra zero Applications finché non configuri l'RBAC** (`argocd-rbac-cm` di default nega tutto a chiunque non sia l'utente locale `admin`). Mappa il gruppo Authentik dell'utente (verificalo con `kubectl -n authentik exec deploy/authentik-worker -- ak shell -c "from authentik.core.models import User; [print(u.username, u.email, [g.name for g in u.groups.all()]) for u in User.objects.all()]"`) a un ruolo ArgoCD:
+   ```bash
+   kubectl -n argocd patch configmap argocd-rbac-cm --type merge -p '{"data":{"policy.csv":"g, authentik Admins, role:admin","scopes":"[groups, email]"}}'
+   ```
+   Non serve riavviare nulla — `argocd-server` ricarica `argocd-rbac-cm` a caldo, basta un refresh della pagina (anche senza rifare login, il claim `groups` è già nel token di sessione esistente).
 
 #### Immich
 1. In Authentik: Provider OAuth2, redirect URI `https://immich.mbianchi.me/auth/login`, scope `openid profile email`.
@@ -301,14 +342,47 @@ Per ciascuno di questi 4 servizi, crea in Authentik un **OAuth2/OpenID Provider*
 3. Verifica login da web e da app mobile (pulsante "Login with OAuth").
 
 #### Nextcloud
-1. In Authentik: Provider OAuth2, redirect URI `https://nextcloud.mbianchi.me/apps/user_oidc/code`.
-2. In Nextcloud: installa l'app **user_oidc** (Apps → Security), poi Impostazioni → OIDC → aggiungi provider con Issuer/Client ID/Secret.
-3. Verifica login da web; i client desktop/mobile di sync continuano a usare le app-password esistenti, non toccati.
+1. In Authentik: Provider OAuth2, redirect URI `https://nextcloud.mbianchi.me/apps/user_oidc/code`, grant types `authorization_code` + `refresh_token`.
+2. In Nextcloud, via `occ` (più rapido della UI, nessun bisogno di loggarsi come admin da browser):
+   ```bash
+   kubectl -n nextcloud exec deploy/nextcloud -- php occ app:install user_oidc
+   kubectl -n nextcloud exec deploy/nextcloud -- php occ user_oidc:provider Authentik \
+     --clientid="<CLIENT_ID>" \
+     --clientsecret="<CLIENT_SECRET>" \
+     --discoveryuri="https://auth.mbianchi.me/application/o/nextcloud/.well-known/openid-configuration" \
+     --scope="openid profile email" \
+     --unique-uid=0 --check-bearer=0 --group-provisioning=0 --send-id-token-hint=1
+   ```
+3. Verifica: `kubectl -n nextcloud exec deploy/nextcloud -- php occ user_oidc:provider` deve elencare il provider "Authentik"; poi testa il login da browser su `https://nextcloud.mbianchi.me/login`. I client desktop/mobile di sync continuano a usare le app-password esistenti, non toccati.
 
 #### Paperless-ngx
-⚠️ Se sul tuo cluster gli snippet ingress-nginx sono disabilitati (vedi nota nella Fase 3.5), **non puoi** usare `auth-snippet` per rinominare l'header. Verifica invece se la tua versione di Paperless-ngx supporta `PAPERLESS_HTTP_REMOTE_USER_HEADER_NAME` (aggiunta nelle versioni più recenti): permette di dire a Paperless di leggere direttamente l'header che Authentik già restituisce (`HTTP_X_AUTHENTIK_USERNAME`), senza bisogno di rinominarlo via snippet.
-1. Aggiungi al Deployment di Paperless (`argo/apps/paperless/`) le variabili d'ambiente `PAPERLESS_ENABLE_HTTP_REMOTE_USER: "true"` e, se supportata dalla tua versione, `PAPERLESS_HTTP_REMOTE_USER_HEADER_NAME: "HTTP_X_AUTHENTIK_USERNAME"` (altrimenti verifica nella documentazione Paperless-ngx corrente come mappare l'header senza snippet, es. tramite un middleware/sidecar leggero, oppure passa a OIDC nativo se disponibile nella tua versione).
-2. Aggiungi all'ingress di Paperless (`argo/apps/paperless/ingress.yaml`) solo `auth-url`/`auth-signin`/`auth-response-headers` (che deve includere `X-authentik-username`), **senza** `auth-snippet`.
+Le versioni recenti di Paperless-ngx (verificato su 2.20.x) supportano OIDC nativo via `django-allauth` — molto più pulito del vecchio approccio header-based, niente bisogno di `auth-snippet`/`auth-url` sull'ingress.
+
+1. In Authentik: Provider OAuth2, redirect URI `https://paperless.mbianchi.me/accounts/oidc/authentik/login/callback/` (`oidc` è il prefisso di default di allauth per il provider generico `openid_connect`, `authentik` è il `provider_id` che scegli tu — deve combaciare esattamente in entrambi i posti), grant types `authorization_code` + `refresh_token`.
+2. Crea un `SealedSecret` (`argo/apps/paperless/sealedsecret-oidc.yaml`) con la chiave `PAPERLESS_SOCIALACCOUNT_PROVIDERS` contenente questo JSON (sostituisci client_id/secret):
+   ```bash
+   PAYLOAD='{"openid_connect":{"OAUTH_PKCE_ENABLED":true,"APPS":[{"provider_id":"authentik","name":"Authentik","client_id":"<CLIENT_ID>","secret":"<CLIENT_SECRET>","settings":{"server_url":"https://auth.mbianchi.me/application/o/paperless/.well-known/openid-configuration","fetch_userinfo":true}}],"SCOPE":["openid","profile","email"]}}'
+   kubectl create secret generic paperless-oidc --namespace paperless \
+     --from-literal=PAPERLESS_SOCIALACCOUNT_PROVIDERS="$PAYLOAD" \
+     --dry-run=client -o yaml \
+   | kubeseal --controller-name sealed-secrets-controller --controller-namespace sealed-secrets --format yaml \
+   > argo/apps/paperless/sealedsecret-oidc.yaml
+   ```
+3. Aggiungi al Deployment (`argo/apps/paperless/deployment.yaml`) due env var: `PAPERLESS_APPS: allauth.socialaccount.providers.openid_connect` e `PAPERLESS_SOCIALACCOUNT_PROVIDERS` da `secretKeyRef` sul secret appena creato.
+4. Committa e pusha entrambi i file. Dopo il sync, verifica login da browser su `https://paperless.mbianchi.me`.
+5. ⚠️ **Se hai già un utente admin locale esistente** (verificalo con `kubectl -n paperless exec deploy/paperless -- python3 /usr/src/paperless/src/manage.py shell -c "from django.contrib.auth.models import User; [print(u.pk,u.username,u.email) for u in User.objects.all()]"`), il primo login SSO creerà quasi certamente un **utente separato/duplicato** (a meno che l'email Authentik non combaci esattamente con quella già in Paperless). Per collegarli senza perdere permessi/documenti: fai un login di prova via SSO, poi ricollega il record `SocialAccount` creato all'utente esistente invece di lasciarlo sul nuovo duplicato:
+   ```bash
+   kubectl -n paperless exec deploy/paperless -- python3 /usr/src/paperless/src/manage.py shell -c "
+   from allauth.socialaccount.models import SocialAccount
+   from django.contrib.auth.models import User
+   sa = SocialAccount.objects.latest('id')          # l'ultimo creato dal test login
+   existing = User.objects.get(username='<utente-esistente>')
+   duplicate = sa.user
+   sa.user = existing
+   sa.save()
+   duplicate.delete()                                # sicuro solo se il duplicato non possiede documenti
+   "
+   ```
 
 ---
 
