@@ -386,23 +386,19 @@ Le versioni recenti di Paperless-ngx (verificato su 2.20.x) supportano OIDC nati
 
 ---
 
-## Fase 4 — Home Assistant: Cloudflare Access
+## Fase 4 — Home Assistant: niente Cloudflare Access, solo login nativo + 2FA
 
-Nel dashboard Cloudflare, sezione **Zero Trust → Access → Applications**:
+⚠️ **Cambio rispetto al piano originale**: l'app companion di Home Assistant (iOS/Android) **non supporta l'invio di header personalizzati** (`CF-Access-Client-Id`/`Secret`) — è un limite noto e ancora aperto della companion app, non qualcosa che si possa configurare lato app. Il Service Token di Cloudflare Access quindi non è utilizzabile dall'app nativa in nessun modo diretto (nessun campo "Configure Cloudflare Access" esiste nell'app, a differenza di quanto inizialmente ipotizzato in questo runbook).
 
-1. **Add an application → Self-hosted**.
-   - Application domain: `homeassistant.mbianchi.me`.
-   - Session duration: 24h (o a piacere).
-2. **Policy**: Add policy → Action **Allow** → Include: `Emails` → `marco.bianchi@docebo.com` (aggiungi altri indirizzi se serve) → login method **One-Time PIN**.
-3. **Zero Trust → Access → Service Auth → Service Tokens → Create Service Token**.
-   - Nome: `ha-companion-app`.
-   - **Copia subito Client ID e Client Secret** (il secret è mostrato una sola volta).
-4. Torna sull'Access Application di HA → aggiungi una seconda **Policy**: Action **Service Auth** → Include: `Service Token` → `ha-companion-app`.
-5. Sull'app Home Assistant companion (telefono): **Impostazioni → Companion App → [la tua istanza] → Configure Cloudflare Access** → incolla Client ID/Secret dal punto 3.
+Approccio adottato: **Home Assistant resta senza Cloudflare Access**, esattamente come Plex/ntfy — nessuna whitelist, nessun forward-auth, nessuna Access Application. L'unica protezione è il login nativo di Home Assistant, rinforzato con la **2FA (TOTP)**:
 
-Verifica: da browser, `https://homeassistant.mbianchi.me` chiede l'OTP via email; dall'app companion col token configurato, l'accesso è diretto.
+1. Se hai già creato un'Access Application per `homeassistant.mbianchi.me` in Cloudflare Zero Trust, **eliminala** (Zero Trust → Access → Applications → ⋮ → Delete) insieme al Service Token associato, ormai inutilizzabile.
+2. Su Home Assistant (da browser, login con l'account esistente): **Profilo (icona in basso a sinistra) → Sicurezza → Multi-factor authentication → Abilita "Authenticator app da OTP"**, scansiona il QR code con un'app TOTP (Authy, Google Authenticator, Bitwarden, ecc.).
+3. Verifica: da ora in poi il login su `https://homeassistant.mbianchi.me` richiede password + codice TOTP, sia da browser che dall'app companion.
 
-Nota: non serve nessuna modifica alla VM Home Assistant stessa — `http.trusted_proxies` resta invariato.
+Nota: non serve nessuna modifica alla VM Home Assistant stessa — `http.trusted_proxies` resta invariato, l'Ingress non ha annotazioni whitelist/auth-* (già rimosse in Fase 3.5).
+
+Alternative più complesse non adottate (menzionate per completezza): un proxy locale come il progetto community "app-cloudflared" per gestire il Service Token lato client, oppure una policy Cloudflare Access con bypass per User-Agent (sconsigliato, facilmente falsificabile).
 
 ---
 
@@ -415,7 +411,7 @@ curl -I https://mbianchi.me
 curl -I https://home.mbianchi.me        # deve redirigere ad auth.mbianchi.me
 curl -I https://plex.mbianchi.me        # pubblico, nessun redirect
 curl -I https://ntfy.mbianchi.me        # pubblico, nessun redirect
-curl -I https://homeassistant.mbianchi.me   # deve chiedere Cloudflare Access
+curl -I https://homeassistant.mbianchi.me   # pubblico, nessun redirect — protetto solo da login nativo HA + 2FA
 ```
 
 Testa anche da browser reale login SSO completo su almeno un servizio forward-auth, `argocd login` via SSO, l'app mobile Immich, il client Nextcloud desktop.
