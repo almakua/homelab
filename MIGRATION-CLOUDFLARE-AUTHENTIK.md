@@ -209,9 +209,35 @@ Poi apri `https://auth.mbianchi.me` nel browser (dovrebbe già funzionare tramit
    kubectl -n authentik get svc
    # atteso: solo authentik-server, authentik-postgresql, authentik-postgresql-hl — nessun "ak-outpost-*"
    ```
-   Le annotazioni `auth-url` puntano quindi direttamente al Service `authentik-server` (porta 80), non a un service outpost separato — è già così nei file di questo repo:
+
+   4. **Imposta esplicitamente l'"Authentication flow"** sul Proxy Provider (non solo Authorization/Invalidation flow) — su questa versione del chart (2026.5.5), se lo lasci vuoto l'outpost va in **crash loop permanente** con un panic Go (`interface conversion: interface {} is nil, not string` in `application.go`) ogni volta che prova a ricostruire la sua configurazione interna. Usa `default-authentication-flow`.
+
+   5. ⚠️ **Non fare mai `PATCH` parziali sulla config dell'outpost** (es. per cambiare solo `log_level`) tramite l'API — il campo `config` viene **sostituito per intero**, non fatto merge, e questo cancella silenziosamente `authentik_host` (causando lo stesso crash del punto 4). Se devi cambiare un valore di `config`, leggi prima l'oggetto completo e riscrivilo tutto.
+
+   **Il vero punto critico — l'header Host della subrequest**: l'outpost registra le sue "Application" interne per hostname (log `"Loaded application","host":"auth.mbianchi.me"`) e usa l'header **Host** della richiesta di `auth_request` — non `X-Original-URL` — per decidere quale Application applicare. Puntare `auth-url` direttamente al Service interno (`authentik-server.authentik.svc.cluster.local`) fa sì che nginx invii quell'FQDN come Host, che non corrisponde a nessuna Application registrata → **404 persistente**, anche per l'host esatto del provider. La soluzione (già applicata in questo repo) è un rewrite DNS interno via CoreDNS così che `auth.mbianchi.me`, risolto DA DENTRO il cluster, punti direttamente al Service `authentik-server` — mantenendo così sia l'header Host corretto sia il routing tutto interno (nessun giro via Cloudflare Tunnel per un controllo che avviene ad ogni singola richiesta):
+
+   `argo/infrastructure/coredns-custom/configmap.yaml` (letto automaticamente da k3s, nessuna modifica al Corefile principale):
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: coredns-custom
+     namespace: kube-system
+   data:
+     mbianchi.override: |
+       rewrite name auth.mbianchi.me authentik-server.authentik.svc.cluster.local
    ```
-   nginx.ingress.kubernetes.io/auth-url: "http://authentik-server.authentik.svc.cluster.local:80/outpost.goauthentik.io/auth/nginx"
+   Application: `argo/applications/coredns-custom.yaml`, sync-wave `-10` (deve esistere prima di tutto il resto).
+
+   Verifica che il rewrite sia attivo (da un pod qualsiasi nel cluster):
+   ```bash
+   kubectl -n authentik exec deploy/authentik-worker -- getent hosts auth.mbianchi.me
+   # atteso: l'IP ClusterIP di authentik-server (kubectl -n authentik get svc authentik-server), NON un IP pubblico
+   ```
+
+   Le annotazioni `auth-url` di questo repo usano quindi l'hostname pubblico (che grazie al rewrite risolve internamente):
+   ```
+   nginx.ingress.kubernetes.io/auth-url: "http://auth.mbianchi.me/outpost.goauthentik.io/auth/nginx"
    ```
 
 ### 3.5 Verifica il forward-auth

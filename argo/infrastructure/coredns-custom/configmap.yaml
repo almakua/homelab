@@ -1,0 +1,18 @@
+# k3s legge automaticamente questo ConfigMap (import /etc/coredns/custom/*.override
+# nel Corefile di default) senza bisogno di toccare il Corefile principale.
+#
+# Necessario perché il forward-auth di Authentik (modalità domain-level) verifica
+# l'header Host della richiesta di auth_request per capire quale Application usare:
+# se punta direttamente al Service interno (authentik-server.authentik.svc.cluster.local)
+# l'Host non combacia con nessuna Application registrata e la richiesta fallisce con 404.
+# Questo rewrite fa risolvere auth.mbianchi.me, quando richiesto DA DENTRO il cluster,
+# direttamente al Service authentik-server — nessun giro esterno via Cloudflare Tunnel
+# per un controllo che avviene comunque internamente ad ogni richiesta.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-custom
+  namespace: kube-system
+data:
+  mbianchi.override: |
+    rewrite name auth.mbianchi.me authentik-server.authentik.svc.cluster.local
